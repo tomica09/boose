@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>306 학급 부스 팀 신청 시스템</title>
+    <title>3 - 6 학급 부스 역할 신청 시스템</title>
     <style>
       .team-container {
         display: flex;
@@ -24,7 +24,7 @@
     </style>
   </head>
   <body>
-    <h1>306 학급 부스 역할 신청 시스템</h1>
+    <h1>3 - 6 학급 부스 역할 신청 시스템</h1>
     <div class="team-container" id="teams"></div>
 
     <script type="module">
@@ -99,6 +99,9 @@
             roleDiv.className = "role";
 
             const roleHeader = document.createElement("h3");
+            const filledCount = teams[team][role].filter(
+              (x) => x !== false
+            ).length;
             roleHeader.textContent = `${role} (${
               teams[team][role].filter((x) => x !== false).length
             }/${maxCounts[role]})`;
@@ -115,58 +118,63 @@
 
             const button = document.createElement("button");
             button.textContent = `${role} 신청`;
-            button.onclick = async () => {
-              const name = prompt("이름을 입력하세요:");
-              if (name) {
-                if (name === "초기화") {
-                  // 초기화 처리
-                  if (confirm("모든 데이터를 초기화하시겠습니까?")) {
-                    try {
-                      await set(teamsRef, initialTeams);
-                      alert("데이터베이스가 초기화되었습니다.");
-                    } catch (error) {
-                      console.error("초기화 실패:", error);
-                      alert("초기화 중 오류가 발생했습니다.");
-                    }
-                  }
-                } else {
-                  try {
-                    let is = 0;
-                    // 트랜잭션으로 데이터 업데이트
-                    const roleRef = ref(db, `teams/${team}/${role}`);
-                    const transactionResult = await runTransaction(
-                      roleRef,
-                      (currentValue) => {
-                        if (
-                          currentValue &&
-                          currentValue.filter((x) => x !== false).length <
-                            maxCounts[role]
-                        ) {
-                          // 현재 팀의 역할에 신청자가 있을 경우, 새로운 이름 추가
-                          for (let i = 0; i < currentValue.length; i++) {
-                            if (currentValue[i] === false) {
-                              currentValue[i] = name;
 
-                              return currentValue;
+            if (filledCount >= maxCounts[role]) {
+              button.disabled = true;
+            } else {
+              button.onclick = async () => {
+                const name = prompt("이름을 입력하세요:");
+                if (name) {
+                  if (name === "초기화") {
+                    // 초기화 처리
+                    if (confirm("모든 데이터를 초기화하시겠습니까?")) {
+                      try {
+                        await set(teamsRef, initialTeams);
+                        alert("데이터베이스가 초기화되었습니다.");
+                      } catch (error) {
+                        console.error("초기화 실패:", error);
+                        alert("초기화 중 오류가 발생했습니다.");
+                      }
+                    }
+                  } else {
+                    try {
+                      let is = 0;
+                      // 트랜잭션으로 데이터 업데이트
+                      const roleRef = ref(db, `teams/${team}/${role}`);
+                      const transactionResult = await runTransaction(
+                        roleRef,
+                        (currentValue) => {
+                          if (
+                            currentValue &&
+                            currentValue.filter((x) => x !== false).length <
+                              maxCounts[role]
+                          ) {
+                            // 현재 팀의 역할에 신청자가 있을 경우, 새로운 이름 추가
+                            for (let i = 0; i < currentValue.length; i++) {
+                              if (currentValue[i] === false) {
+                                currentValue[i] = name;
+
+                                return currentValue;
+                              }
                             }
                           }
+                          is = 1;
+                          alert("신청 실패: 최대 인원이 이미 채워졌습니다.");
+                          return currentValue; // 이미 최대 인원 도달
                         }
-                        is = 1;
-                        alert("신청 실패: 최대 인원이 이미 채워졌습니다.");
-                        return currentValue; // 이미 최대 인원 도달
+                      );
+                      if (is === 0) {
+                        alert("신청이 완료되었습니다.");
                       }
-                    );
-                    if (is === 0) {
-                      alert("신청이 완료되었습니다.");
+                      is = 0;
+                    } catch (error) {
+                      console.error("신청 처리 중 오류 발생:", error);
+                      alert("오류가 발생했습니다. 다시 시도해주세요.");
                     }
-                    is = 0;
-                  } catch (error) {
-                    console.error("신청 처리 중 오류 발생:", error);
-                    alert("오류가 발생했습니다. 다시 시도해주세요.");
                   }
                 }
-              }
-            };
+              };
+            }
             roleDiv.appendChild(button);
             teamDiv.appendChild(roleDiv);
           });
