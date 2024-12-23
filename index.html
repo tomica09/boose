@@ -1,23 +1,20 @@
 <!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Firebase 실시간 신청</title>
-  </head>
-  <body>
-    <h1>실시간 신청 시스템</h1>
-    <ul id="roles"></ul>
-    <script type="module">
-      // Firebase 초기화
-      // Import the functions you need from the SDKs you need
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-      // TODO: Add SDKs for Firebase products that you want to use
-      // https://firebase.google.com/docs/web/setup#available-libraries
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firebase 실시간 신청</title>
+</head>
+<body>
+  <h1>실시간 신청 시스템</h1>
+  <ul id="roles"></ul>
 
-      // Your web app's Firebase configuration
+  <script type="module">
+    // Firebase 초기화
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
-      const firebaseConfig = {
+     const firebaseConfig = {
         apiKey: "AIzaSyDht4aUYihekrtnODkBWQJw_mpM132gfaU",
         authDomain: "hansu-cd3f0.firebaseapp.com",
         databaseURL: "https://hansu-cd3f0-default-rtdb.firebaseio.com",
@@ -27,34 +24,42 @@
         appId: "1:222653953198:web:443f4d341d00644bb2e93f",
       };
 
-      // Initialize Firebase
-      const db = getDatabase(app);
+    // Firebase 앱 초기화
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-      const rolesRef = ref(db, "roles");
-      const rolesList = document.getElementById("roles");
+    // Firebase의 'roles' 경로를 참조
+    const rolesRef = ref(db, 'roles');
+    const rolesList = document.getElementById("roles");
 
-      // 실시간 데이터 로드
-      onValue(rolesRef, (snapshot) => {
-        const roles = snapshot.val();
-        rolesList.innerHTML = "";
+    // 실시간 데이터 로드
+    onValue(rolesRef, (snapshot) => {
+      const roles = snapshot.val(); // 데이터 가져오기
+      rolesList.innerHTML = ""; // 이전 목록 초기화
 
-        Object.keys(roles).forEach((role) => {
-          const li = document.createElement("li");
-          li.textContent = role;
+      // 각 역할에 대해 리스트 항목을 생성
+      Object.keys(roles).forEach((role) => {
+        const li = document.createElement("li");
+        li.textContent = role; // 역할 이름
 
-          const button = document.createElement("button");
-          button.textContent = "신청";
-          button.disabled = roles[role];
-          button.onclick = () => {
-            const updates = {};
-            updates[`roles/${role}`] = true;
-            update(rolesRef, updates);
-          };
+        const button = document.createElement("button");
+        button.textContent = "신청";
+        
+        // 이미 신청된 역할은 버튼 비활성화
+        button.disabled = roles[role]; 
+        
+        // 버튼 클릭 시, 역할 신청 상태 변경
+        button.onclick = () => {
+          const updates = {};
+          updates[`roles/${role}`] = true; // 역할 상태를 true로 업데이트
+          update(rolesRef, updates); // Firebase에 업데이트 반영
+        };
 
-          li.appendChild(button);
-          rolesList.appendChild(li);
-        });
+        // 역할과 버튼을 리스트에 추가
+        li.appendChild(button);
+        rolesList.appendChild(li);
       });
-    </script>
-  </body>
+    });
+  </script>
+</body>
 </html>
