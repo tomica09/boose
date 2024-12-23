@@ -1,20 +1,45 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Firebase 실시간 신청</title>
-</head>
-<body>
-  <h1>실시간 신청 시스템</h1>
-  <ul id="roles"></ul>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firebase 팀 신청 시스템</title>
+    <style>
+      .team-container {
+        display: flex;
+        justify-content: space-around;
+        margin: 20px 0;
+      }
+      .team {
+        border: 1px solid #ccc;
+        padding: 10px;
+        width: 30%;
+      }
+      .team h2 {
+        text-align: center;
+      }
+      .role {
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>팀 신청 시스템</h1>
+    <div class="team-container" id="teams"></div>
 
-  <script type="module">
-    // Firebase 초기화
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+    <script type="module">
+      // Firebase SDK 가져오기
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        onValue,
+        runTransaction,
+        set,
+      } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
 
-     const firebaseConfig = {
+      // Firebase 설정
+      const firebaseConfig = {
         apiKey: "AIzaSyDht4aUYihekrtnODkBWQJw_mpM132gfaU",
         authDomain: "hansu-cd3f0.firebaseapp.com",
         databaseURL: "https://hansu-cd3f0-default-rtdb.firebaseio.com",
@@ -24,42 +49,140 @@
         appId: "1:222653953198:web:443f4d341d00644bb2e93f",
       };
 
-    // Firebase 앱 초기화
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+      // Firebase 초기화
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
 
-    // Firebase의 'roles' 경로를 참조
-    const rolesRef = ref(db, 'roles');
-    const rolesList = document.getElementById("roles");
+      // 초기 데이터 정의
+      const initialTeams = {
+        "Team 1": {
+          제조팀: [false, false, false],
+          웨이터: [false, false, false],
+          홍보: [false, false],
+        },
+        "Team 2": {
+          제조팀: [false, false, false],
+          웨이터: [false, false, false],
+          홍보: [false, false],
+        },
+        "Team 3": {
+          제조팀: [false, false, false],
+          웨이터: [false, false, false],
+          홍보: [false, false],
+        },
+      };
 
-    // 실시간 데이터 로드
-    onValue(rolesRef, (snapshot) => {
-      const roles = snapshot.val(); // 데이터 가져오기
-      rolesList.innerHTML = ""; // 이전 목록 초기화
+      const maxCounts = {
+        제조팀: 3,
+        웨이터: 3,
+        홍보: 2,
+      };
 
-      // 각 역할에 대해 리스트 항목을 생성
-      Object.keys(roles).forEach((role) => {
-        const li = document.createElement("li");
-        li.textContent = role; // 역할 이름
+      const teamsRef = ref(db, "teams");
+      const teamsContainer = document.getElementById("teams");
 
-        const button = document.createElement("button");
-        button.textContent = "신청";
-        
-        // 이미 신청된 역할은 버튼 비활성화
-        button.disabled = roles[role]; 
-        
-        // 버튼 클릭 시, 역할 신청 상태 변경
-        button.onclick = () => {
-          const updates = {};
-          updates[`roles/${role}`] = true; // 역할 상태를 true로 업데이트
-          update(rolesRef, updates); // Firebase에 업데이트 반영
-        };
+      // 실시간 데이터 로드
+      onValue(teamsRef, (snapshot) => {
+        const teams = snapshot.val();
+        teamsContainer.innerHTML = ""; // 기존 UI 초기화
 
-        // 역할과 버튼을 리스트에 추가
-        li.appendChild(button);
-        rolesList.appendChild(li);
+        Object.keys(teams).forEach((team) => {
+          const teamDiv = document.createElement("div");
+          teamDiv.className = "team";
+
+          const teamHeader = document.createElement("h2");
+          teamHeader.textContent = team;
+          teamDiv.appendChild(teamHeader);
+
+          Object.keys(teams[team]).forEach((role) => {
+            const roleDiv = document.createElement("div");
+            roleDiv.className = "role";
+
+            const roleHeader = document.createElement("h3");
+            roleHeader.textContent = `${role} (${
+              teams[team][role].filter((x) => x !== false).length
+            }/${maxCounts[role]})`;
+            roleDiv.appendChild(roleHeader);
+
+            teams[team][role].forEach((name, index) => {
+              if (name !== false) {
+                const nameSpan = document.createElement("span");
+                nameSpan.textContent = name;
+                roleDiv.appendChild(nameSpan);
+                roleDiv.appendChild(document.createElement("br"));
+              }
+            });
+
+            const button = document.createElement("button");
+            button.textContent = `${role} 신청`;
+            button.onclick = async () => {
+              const name = prompt("이름을 입력하세요:");
+              if (name) {
+                if (name === "초기화") {
+                  // 초기화 처리
+                  if (confirm("모든 데이터를 초기화하시겠습니까?")) {
+                    try {
+                      await set(teamsRef, initialTeams);
+                      alert("데이터베이스가 초기화되었습니다.");
+                    } catch (error) {
+                      console.error("초기화 실패:", error);
+                      alert("초기화 중 오류가 발생했습니다.");
+                    }
+                  }
+                } else {
+                  try {
+                    let is = 0;
+                    // 트랜잭션으로 데이터 업데이트
+                    const roleRef = ref(db, `teams/${team}/${role}`);
+                    const transactionResult = await runTransaction(
+                      roleRef,
+                      (currentValue) => {
+                        if (
+                          currentValue &&
+                          currentValue.filter((x) => x !== false).length <
+                            maxCounts[role]
+                        ) {
+                          // 현재 팀의 역할에 신청자가 있을 경우, 새로운 이름 추가
+                          for (let i = 0; i < currentValue.length; i++) {
+                            if (currentValue[i] === false) {
+                              currentValue[i] = name;
+
+                              return currentValue;
+                            }
+                          }
+                        }
+                        is = 1;
+                        alert("신청 실패: 최대 인원이 이미 채워졌습니다.");
+                        return currentValue; // 이미 최대 인원 도달
+                      }
+                    );
+                    if (is === 0) {
+                      alert("신청이 완료되었습니다.");
+                    }
+                    is = 0;
+                  } catch (error) {
+                    console.error("신청 처리 중 오류 발생:", error);
+                    alert("오류가 발생했습니다. 다시 시도해주세요.");
+                  }
+                }
+              }
+            };
+            roleDiv.appendChild(button);
+            teamDiv.appendChild(roleDiv);
+          });
+
+          teamsContainer.appendChild(teamDiv);
+        });
       });
-    });
-  </script>
-</body>
+
+      // 초기 데이터베이스 설정
+      onValue(teamsRef, (snapshot) => {
+        if (!snapshot.exists()) {
+          set(teamsRef, initialTeams).catch((error) => {
+            console.error("데이터베이스 초기화 실패:", error);
+          });
+        }
+      });
+    </script>
+  </body>
 </html>
